@@ -1,8 +1,53 @@
 "use client";
 import Link from "next/link";
 import { FormEvent, useState } from "react";
-import { ArrowRight, Leaf } from "lucide-react";
-import { register } from "@/lib/store";
-import { useRouter } from "next/navigation";
+import { ArrowRight, Leaf, Loader2 } from "lucide-react";
+import { useAuth } from "@/features/auth/auth-context";
 
-export default function RegisterPage() { const router=useRouter(); const [error,setError]=useState(""); const submit=(e:FormEvent<HTMLFormElement>)=>{e.preventDefault(); const d=new FormData(e.currentTarget); try{register(String(d.get("name")),String(d.get("email")),String(d.get("password")));router.push("/dashboard");}catch(err){setError(err instanceof Error?err.message:"Could not create your space.");}}; return <main className="grid min-h-screen place-items-center bg-[#dce9dd] p-6"><section className="w-full max-w-md rounded-[2rem] border border-white/70 bg-[#fffdf8] p-8 shadow-xl shadow-[#203128]/10"><Link href="/" className="flex items-center gap-2 text-lg font-bold"><span className="grid size-9 place-items-center rounded-full bg-[#3e6b50] text-white"><Leaf className="size-4" /></span>spendwise</Link><p className="eyebrow mt-10">Your fresh start</p><h1 className="mt-2 text-3xl font-semibold tracking-tight">A little more room to breathe.</h1><form onSubmit={submit} className="mt-7 space-y-4"><label className="block text-sm font-semibold">Name<input name="name" required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 outline-none focus:border-[#3e6b50]" /></label><label className="block text-sm font-semibold">Email<input name="email" type="email" required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 outline-none focus:border-[#3e6b50]" /></label><label className="block text-sm font-semibold">Password<input name="password" type="password" minLength={6} required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 outline-none focus:border-[#3e6b50]" /></label>{error&&<p className="text-sm font-medium text-[#b74c3d]">{error}</p>}<button className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#c96c4b] py-3.5 font-bold text-white transition hover:bg-[#b95e40]">Create my space <ArrowRight className="size-4" /></button></form><p className="mt-6 text-center text-sm text-[#68756d]">Already have an account? <Link href="/login" className="font-bold text-[#3e6b50]">Log in</Link></p></section></main>; }
+export default function RegisterPage() {
+  const { register } = useAuth();
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setError("");
+    setBusy(true);
+    const d = new FormData(e.currentTarget);
+    try {
+      await register(String(d.get("name")), String(d.get("email")), String(d.get("password")));
+    } catch (err: any) {
+      setError(err?.response?.data?.message || "Could not create your space.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <main className="grid min-h-screen place-items-center bg-[#dce9dd] p-6">
+      <section className="w-full max-w-md rounded-[2rem] border border-white/70 bg-[#fffdf8] p-8 shadow-xl shadow-[#203128]/10">
+        <Link href="/" className="flex items-center gap-2 text-lg font-bold">
+          <span className="grid size-9 place-items-center rounded-full bg-[#3e6b50] text-white"><Leaf className="size-4" /></span>spendwise
+        </Link>
+        <p className="eyebrow mt-10">Your fresh start</p>
+        <h1 className="mt-2 text-3xl font-semibold tracking-tight">A little more room to breathe.</h1>
+        <form onSubmit={submit} className="mt-7 space-y-4">
+          <label className="block text-sm font-semibold">Name
+            <input name="name" required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 outline-none focus:border-[#3e6b50]" />
+          </label>
+          <label className="block text-sm font-semibold">Email
+            <input name="email" type="email" required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 outline-none focus:border-[#3e6b50]" />
+          </label>
+          <label className="block text-sm font-semibold">Password
+            <input name="password" type="password" minLength={8} required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 outline-none focus:border-[#3e6b50]" />
+          </label>
+          {error && <p className="text-sm font-medium text-[#b74c3d]">{error}</p>}
+          <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#c96c4b] py-3.5 font-bold text-white transition hover:bg-[#b95e40] disabled:opacity-60">
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <>Create my space <ArrowRight className="size-4" /></>}
+          </button>
+        </form>
+        <p className="mt-6 text-center text-sm text-[#68756d]">Already have an account? <Link href="/login" className="font-bold text-[#3e6b50]">Log in</Link></p>
+      </section>
+    </main>
+  );
+}

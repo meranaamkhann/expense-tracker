@@ -1,15 +1,10 @@
-"use client"
+"use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/axios";
 import { toast } from "sonner";
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-}
+import { User } from "@/lib/types";
 
 interface AuthContextType {
   user: User | null;
@@ -18,6 +13,7 @@ interface AuthContextType {
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
   updateProfile: (name: string, email: string) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   refreshUser: () => Promise<void>;
 }
 
@@ -28,16 +24,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  const fetchProfile = async (token: string) => {
+  const fetchProfile = async () => {
     try {
-      const response = await api.get("/api/users/profile");
+      const response = await api.get<User>("/api/users/profile");
       setUser(response.data);
-    } catch (error: any) {
+    } catch (error) {
       console.error("Failed to load user profile:", error);
-      logout();
+      clearSession();
     } finally {
       setLoading(false);
     }
+  };
+
+  const clearSession = () => {
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    setUser(null);
   };
 
   useEffect(() => {
@@ -45,20 +47,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== "undefined") {
         const token = localStorage.getItem("accessToken");
         if (token) {
-          await fetchProfile(token);
+          await fetchProfile();
         } else {
           setLoading(false);
         }
       }
     };
     initAuth();
+
+    const onSessionExpired = () => {
+      clearSession();
+      toast.info("Your session expired. Please log in again.");
+      router.push("/login");
+    };
+    window.addEventListener("spendwise-session-expired", onSessionExpired);
+    return () => window.removeEventListener("spendwise-session-expired", onSessionExpired);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const login = async (email: string, password: string) => {
     try {
       const response = await api.post("/api/auth/login", { email, password });
       const { accessToken, refreshToken, user: loggedUser } = response.data;
-      
+
       localStorage.setItem("accessToken", accessToken);
       localStorage.setItem("refreshToken", refreshToken);
       setUser(loggedUser);
@@ -73,9 +84,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (name: string, email: string, password: string) => {
     try {
-      await api.post("/api/auth/register", { name, email, password });
-      toast.success("Account created successfully! You can now log in.");
-      router.push("/login");
+      const response = await api.post("/api/auth/register", { name, email, password });
+      const { accessToken, refreshToken, user: newUser } = response.data;
+
+      // Registration returns a live session too, so the new user lands straight in the dashboard.
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
+      setUser(newUser);
+      toast.success("Account created! Welcome to SpendWise.");
+      router.push("/dashboard");
     } catch (error: any) {
       const msg = error.response?.data?.message || "Registration failed. Try again.";
       toast.error(msg);
@@ -84,9 +101,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
-    setUser(null);
+    api.post("/api/auth/logout").catch(() => {});
+    clearSession();
     toast.info("Logged out successfully.");
     router.push("/login");
   };
@@ -103,28 +119,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const changePassword = async (currentPassword: string, newPassword: string) => {
+    try {
+      await api.put("/api/users/profile/password", { currentPassword, newPassword });
+      toast.success("Password updated successfully!");
+    } catch (error: any) {
+      const msg = error.response?.data?.message || "Could not update password.";
+      toast.error(msg);
+      throw error;
+    }
+  };
+
   const refreshUser = async () => {
-    if (localStorage.getItem("accessToken")) {
-      try {
-        const response = await api.get("/api/users/profile");
-        setUser(response.data);
-      } catch (e) {
-        console.error("Error refreshing user profile", e);
-      }
+    if (typeof window !== "undefined" && localStorage.getItem("accessToken")) {
+      await fetchProfile();
     }
   };
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        login,
-        register,
-        logout,
-        updateProfile,
-        refreshUser,
-      }}
+      value={{ user, loading, login, register, logout, updateProfile, changePassword, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

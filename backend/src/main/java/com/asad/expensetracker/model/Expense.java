@@ -1,50 +1,79 @@
 package com.asad.expensetracker.model;
 
+import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PositiveOrZero;
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
+
+import java.time.Instant;
+import java.time.LocalDate;
+
+@Entity
+@Table(name = "expenses", indexes = {
+        @Index(name = "idx_expense_user_date", columnList = "user_id, expense_date"),
+        @Index(name = "idx_expense_user_category", columnList = "user_id, category_id")
+})
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class Expense {
 
-    private long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @NotBlank
+    @Column(nullable = false, length = 160)
     private String title;
-    private double amount;
-    private String category;
 
-    public Expense() {}
+    @NotNull
+    @PositiveOrZero
+    @Column(nullable = false, precision = 14, scale = 2)
+    private java.math.BigDecimal amount;
 
-    public Expense(long id, String title, double amount, String category) {
-        this.id = id;
-        this.title = title;
-        this.amount = amount;
-        this.category = category;
-    }
+    /** ISO 4217 currency code. Defaults to INR for this deployment. */
+    @Column(nullable = false, length = 3)
+    @Builder.Default
+    private String currency = "INR";
 
-    public long getId() {
-        return id;
-    }
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 10)
+    @Builder.Default
+    private TransactionKind kind = TransactionKind.EXPENSE;
 
-    public void setId(long id) {
-        this.id = id;
-    }
+    @Column(length = 500)
+    private String notes;
 
-    public String getTitle() {
-        return title;
-    }
+    @NotNull
+    @Column(name = "expense_date", nullable = false)
+    private LocalDate expenseDate;
 
-    public void setTitle(String title) {
-        this.title = title;
-    }
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "category_id", nullable = false)
+    private Category category;
 
-    public double getAmount() {
-        return amount;
-    }
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "user_id", nullable = false)
+    private User user;
 
-    public void setAmount(double amount) {
-        this.amount = amount;
-    }
+    @CreationTimestamp
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private Instant createdAt;
 
-    public String getCategory() {
-        return category;
-    }
+    @UpdateTimestamp
+    @Column(name = "updated_at", nullable = false)
+    private Instant updatedAt;
 
-    public void setCategory(String category) {
-        this.category = category;
+    public enum TransactionKind {
+        EXPENSE, INCOME
     }
 }

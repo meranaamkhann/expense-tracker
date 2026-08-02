@@ -1,40 +1,47 @@
 package com.asad.expensetracker.controller;
 
-import com.asad.expensetracker.model.Expense;
+import com.asad.expensetracker.dto.expense.ExpenseRequest;
+import com.asad.expensetracker.dto.expense.ExpenseResponse;
+import com.asad.expensetracker.security.UserPrincipal;
 import com.asad.expensetracker.service.ExpenseService;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/expenses")
+@RequiredArgsConstructor
 public class ExpenseController {
 
-    private final ExpenseService service;
+    private final ExpenseService expenseService;
 
-    public ExpenseController(ExpenseService service) {
-        this.service = service;
+    @GetMapping
+    public ResponseEntity<List<ExpenseResponse>> getAll(@AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(expenseService.getAll(principal.getId()));
     }
 
     @PostMapping
-    public Expense addExpense(@RequestBody Expense expense) {
-        return service.addExpense(expense);
-    }
-
-    @GetMapping
-    public List<Expense> getAllExpenses() {
-        return service.getAllExpenses();
+    public ResponseEntity<ExpenseResponse> create(@AuthenticationPrincipal UserPrincipal principal,
+                                                    @Valid @RequestBody ExpenseRequest request) {
+        ExpenseResponse created = expenseService.create(principal.getId(), principal.getUser(), request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(created);
     }
 
     @PutMapping("/{id}")
-    public Expense updateExpense(
-            @PathVariable long id,
-            @RequestBody Expense expense) {
-        return service.updateExpense(id, expense);
+    public ResponseEntity<ExpenseResponse> update(@AuthenticationPrincipal UserPrincipal principal,
+                                                    @PathVariable Long id,
+                                                    @Valid @RequestBody ExpenseRequest request) {
+        return ResponseEntity.ok(expenseService.update(principal.getId(), id, request));
     }
 
     @DeleteMapping("/{id}")
-    public void deleteExpense(@PathVariable long id) {
-        service.deleteExpense(id);
+    public ResponseEntity<Void> delete(@AuthenticationPrincipal UserPrincipal principal, @PathVariable Long id) {
+        expenseService.delete(principal.getId(), id);
+        return ResponseEntity.noContent().build();
     }
 }

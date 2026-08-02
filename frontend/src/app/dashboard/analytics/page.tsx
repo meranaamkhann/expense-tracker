@@ -1,4 +1,53 @@
 "use client";
-import { useWallet } from "@/lib/use-wallet";
+import { useWallet } from "@/features/wallet/wallet-context";
 
-export default function AnalyticsPage() { const {categories,transactions}=useWallet(); const expenses=transactions.filter(t=>t.kind==="expense"); const total=expenses.reduce((n,t)=>n+t.amount,0); const rows=categories.map(c=>({...c,total:expenses.filter(t=>t.categoryId===c.id).reduce((n,t)=>n+t.amount,0)})).filter(c=>c.total).sort((a,b)=>b.total-a.total); const days=[...new Set(transactions.map(t=>t.date))].length; return <div className="mx-auto max-w-5xl"><p className="eyebrow">Reflections, not judgements</p><h1 className="mt-2 text-4xl font-semibold tracking-tight">See the story your choices tell.</h1><section className="mt-8 grid gap-4 md:grid-cols-3"><article className="card p-5"><p className="text-sm text-[#68756d]">Total outflow</p><p className="mt-2 text-3xl font-semibold">${total.toFixed(2)}</p></article><article className="card p-5"><p className="text-sm text-[#68756d]">Daily average</p><p className="mt-2 text-3xl font-semibold">${(total/Math.max(days,1)).toFixed(2)}</p></article><article className="rounded-[22px] bg-[#dce9dd] p-5"><p className="text-sm text-[#526056]">Most present category</p><p className="mt-2 text-2xl font-semibold">{rows[0]?.name ?? "Not enough data"}</p></article></section><section className="card mt-7 p-6"><div><p className="eyebrow">Spending shape</p><h2 className="mt-1 text-xl font-semibold">Where your money has been going</h2></div><div className="mt-8 space-y-6">{rows.length?rows.map(r=><div key={r.id}><div className="flex justify-between gap-4 text-sm"><strong>{r.name}</strong><span>${r.total.toFixed(2)} · {Math.round(r.total/total*100)}%</span></div><div className="mt-2 h-4 overflow-hidden rounded-full bg-[#f2efe7]"><div className="h-full rounded-full" style={{width:`${r.total/total*100}%`,background:r.color}} /></div></div>):<p className="text-[#68756d]">Add a few entries and this view will begin to take shape.</p>}</div></section><p className="mt-6 max-w-2xl rounded-2xl bg-[#fff0e9] p-5 leading-7 text-[#764531]">This view is a mirror, not a scorecard. Use it to notice what is supporting your life—and what you may want to change.</p></div>; }
+export default function AnalyticsPage() {
+  const { categories, transactions } = useWallet();
+  const expenses = transactions.filter((t) => t.kind === "expense");
+  const total = expenses.reduce((n, t) => n + t.amount, 0);
+  const rows = categories
+    .map((c) => ({ ...c, total: expenses.filter((t) => t.categoryId === c.id).reduce((n, t) => n + t.amount, 0) }))
+    .filter((c) => c.total)
+    .sort((a, b) => b.total - a.total);
+  const days = new Set(transactions.map((t) => t.date)).size;
+
+  return (
+    <div className="mx-auto max-w-5xl">
+      <p className="eyebrow">Reflections, not judgements</p>
+      <h1 className="mt-2 text-4xl font-semibold tracking-tight">See the story your choices tell.</h1>
+      <section className="mt-8 grid gap-4 md:grid-cols-3">
+        <article className="card p-5">
+          <p className="text-sm text-[#68756d]">Total outflow</p>
+          <p className="mt-2 text-3xl font-semibold">₹{total.toFixed(2)}</p>
+        </article>
+        <article className="card p-5">
+          <p className="text-sm text-[#68756d]">Daily average</p>
+          <p className="mt-2 text-3xl font-semibold">₹{(total / Math.max(days, 1)).toFixed(2)}</p>
+        </article>
+        <article className="rounded-[22px] bg-[#dce9dd] p-5">
+          <p className="text-sm text-[#526056]">Most present category</p>
+          <p className="mt-2 text-2xl font-semibold">{rows[0]?.name ?? "Not enough data"}</p>
+        </article>
+      </section>
+      <section className="card mt-7 p-6">
+        <div>
+          <p className="eyebrow">Spending shape</p>
+          <h2 className="mt-1 text-xl font-semibold">Where your money has been going</h2>
+        </div>
+        <div className="mt-8 space-y-6">
+          {rows.length ? rows.map((r) => (
+            <div key={r.id}>
+              <div className="flex justify-between gap-4 text-sm">
+                <strong>{r.name}</strong><span>₹{r.total.toFixed(2)} · {Math.round((r.total / total) * 100)}%</span>
+              </div>
+              <div className="mt-2 h-4 overflow-hidden rounded-full bg-[#f2efe7]">
+                <div className="h-full rounded-full" style={{ width: `${(r.total / total) * 100}%`, background: r.color }} />
+              </div>
+            </div>
+          )) : <p className="text-[#68756d]">Add a few entries and this view will begin to take shape.</p>}
+        </div>
+      </section>
+      <p className="mt-6 max-w-2xl rounded-2xl bg-[#fff0e9] p-5 leading-7 text-[#764531]">This view is a mirror, not a scorecard. Use it to notice what is supporting your life—and what you may want to change.</p>
+    </div>
+  );
+}
