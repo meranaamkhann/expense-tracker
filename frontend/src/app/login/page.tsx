@@ -39,6 +39,9 @@ export default function LoginPage() {
           <label className="block text-sm font-semibold">Password
             <input name="password" type="password" required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 outline-none focus:border-[#3e6b50]" />
           </label>
+          <div className="text-right">
+            <Link href="/forgot-password" className="text-sm font-semibold text-[#3e6b50]">Forgot password?</Link>
+          </div>
           {error && <p className="text-sm font-medium text-[#b74c3d]">{error}</p>}
           <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#203128] py-3.5 font-bold text-white transition hover:bg-[#3e6b50] disabled:opacity-60">
             {busy ? <Loader2 className="size-4 animate-spin" /> : <>Enter SpendWise <ArrowRight className="size-4" /></>}

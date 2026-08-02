@@ -6,6 +6,17 @@ spring:
   jackson:
     default-property-inclusion: non_null
     time-zone: Asia/Kolkata
+  mail:
+    host: ${SMTP_HOST:}
+    port: ${SMTP_PORT:587}
+    username: ${SMTP_USERNAME:}
+    password: ${SMTP_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
 
 app:
   security:
@@ -15,6 +26,11 @@ app:
       refresh-token-ttl-days: ${JWT_REFRESH_TTL_DAYS:7}
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+  mail:
+    # If SMTP_HOST is blank (the default), the app logs the reset link instead of emailing it —
+    # handy for local dev. Set real SMTP_* env vars in prod to actually send email.
+    from: ${MAIL_FROM:no-reply@spendwise.app}
+    frontend-reset-url: ${FRONTEND_RESET_URL:http://localhost:3000/reset-password}
 
 management:
   endpoints:
@@ -37,7 +53,7 @@ spring:
     activate:
       on-profile: dev
   datasource:
-    url: jdbc:h2:file:./data/expensetracker;AUTO_SERVER=TRUE
+    url: jdbc:h2:file:./data/expensetracker;MODE=PostgreSQL;AUTO_SERVER=TRUE;DATABASE_TO_LOWER=TRUE
     driver-class-name: org.h2.Driver
     username: sa
     password: ""
@@ -45,9 +61,11 @@ spring:
     console:
       enabled: true
       path: /h2-console
+  flyway:
+    enabled: true
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     properties:
       hibernate:
@@ -74,9 +92,7 @@ spring:
       maximum-pool-size: ${DB_POOL_SIZE:10}
   jpa:
     hibernate:
-      # NOTE: no Flyway/Liquibase is wired up yet, so we let Hibernate manage the schema.
-      # Before a real production launch, swap this for a migration tool and set this to "validate".
-      ddl-auto: update
+      ddl-auto: validate
     show-sql: false
     open-in-view: false
     properties:
@@ -84,6 +100,8 @@ spring:
         format_sql: false
         jdbc:
           batch_size: 30
+  flyway:
+    enabled: true
 
 app:
   security:

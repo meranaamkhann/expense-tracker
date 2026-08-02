@@ -14,6 +14,8 @@ interface AuthContextType {
   logout: () => void;
   updateProfile: (name: string, email: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
+  forgotPassword: (email: string) => Promise<string>;
+  resetPassword: (token: string, newPassword: string) => Promise<string>;
   refreshUser: () => Promise<void>;
 }
 
@@ -130,6 +132,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const forgotPassword = async (email: string): Promise<string> => {
+    try {
+      const response = await api.post("/api/auth/forgot-password", { email });
+      return response.data?.message || "If that email has an account, a reset link is on its way.";
+    } catch (error: any) {
+      const msg = error.response?.data?.message || "Could not process that request.";
+      toast.error(msg);
+      throw error;
+    }
+  };
+
+  const resetPassword = async (token: string, newPassword: string): Promise<string> => {
+    try {
+      const response = await api.post("/api/auth/reset-password", { token, newPassword });
+      return response.data?.message || "Password reset successfully.";
+    } catch (error: any) {
+      const msg = error.response?.data?.message || "That reset link is invalid or has expired.";
+      toast.error(msg);
+      throw error;
+    }
+  };
+
   const refreshUser = async () => {
     if (typeof window !== "undefined" && localStorage.getItem("accessToken")) {
       await fetchProfile();
@@ -138,7 +162,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, register, logout, updateProfile, changePassword, refreshUser }}
+      value={{ user, loading, login, register, logout, updateProfile, changePassword, forgotPassword, resetPassword, refreshUser }}
     >
       {children}
     </AuthContext.Provider>
