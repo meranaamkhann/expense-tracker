@@ -50,4 +50,32 @@ public class MailService {
             log.error("Failed to send password reset email to {}", toEmail, ex);
         }
     }
+
+    /**
+     * Sends the "confirm your email" link. Same dev-safe fallback as the password reset email:
+     * if SMTP isn't configured, the link is logged instead of sent.
+     */
+    public void sendVerificationEmail(String toEmail, String verifyLink) {
+        if (smtpHost == null || smtpHost.isBlank()) {
+            log.info("SMTP is not configured — email verification link for {}: {}", toEmail, verifyLink);
+            return;
+        }
+
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(from);
+            message.setTo(toEmail);
+            message.setSubject("Confirm your SpendWise email");
+            message.setText("""
+                    Welcome to SpendWise! Please confirm your email address to finish setting up your account.
+
+                    Confirm it here: %s
+
+                    This link expires in 24 hours. If you didn't create this account, you can ignore this email.
+                    """.formatted(verifyLink));
+            mailSender.send(message);
+        } catch (Exception ex) {
+            log.error("Failed to send verification email to {}", toEmail, ex);
+        }
+    }
 }

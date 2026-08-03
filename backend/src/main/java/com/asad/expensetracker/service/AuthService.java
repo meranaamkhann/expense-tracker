@@ -7,9 +7,11 @@ import com.asad.expensetracker.exception.BadRequestException;
 import com.asad.expensetracker.exception.DuplicateResourceException;
 import com.asad.expensetracker.exception.UnauthorizedException;
 import com.asad.expensetracker.mapper.Mappers;
+import com.asad.expensetracker.model.EmailVerificationToken;
 import com.asad.expensetracker.model.PasswordResetToken;
 import com.asad.expensetracker.model.Role;
 import com.asad.expensetracker.model.User;
+import com.asad.expensetracker.repository.EmailVerificationTokenRepository;
 import com.asad.expensetracker.repository.PasswordResetTokenRepository;
 import com.asad.expensetracker.repository.UserRepository;
 import com.asad.expensetracker.security.JwtService;
@@ -35,6 +37,7 @@ public class AuthService {
     private static final Logger log = LoggerFactory.getLogger(AuthService.class);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final long RESET_TOKEN_TTL_MINUTES = 30;
+    private static final long VERIFY_TOKEN_TTL_HOURS = 24;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -42,11 +45,21 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final CategoryService categoryService;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
+    private final EmailVerificationTokenRepository emailVerificationTokenRepository;
     private final MailService mailService;
 
     @Value("${app.mail.frontend-reset-url}")
     private String frontendResetUrl;
 
+    @Value("${app.mail.frontend-verify-url}")
+    private String frontendVerifyUrl;
+
+    /**
+     * New accounts can log in and use the app right away (verification is not a login gate —
+     * that would just add friction for a personal finance tool). The `emailVerified` flag is
+     * surfaced to the frontend so it can nudge the user, and is available for anything in the
+     * future that should require a confirmed address.
+     */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         String email = request.email().trim().toLowerCase();
@@ -60,10 +73,12 @@ public class AuthService {
                 .password(passwordEncoder.encode(request.password()))
                 .role(Role.USER)
                 .enabled(true)
+                .emailVerified(false)
                 .build();
 
         user = userRepository.save(user);
         categoryService.seedDefaultCategories(user);
+        sendVerificationEmail(user);
 
         log.info("Registered new user id={}", user.getId());
         return issueTokens(user);
@@ -171,6 +186,48 @@ public class AuthService {
         passwordResetTokenRepository.save(resetToken);
 
         log.info("Password reset completed for user id={}", user.getId());
+    }
+
+    @Transactional
+    public void verifyEmail(String rawToken) {
+        String tokenHash = jwtService.hashToken(rawToken);
+        EmailVerificationToken verificationToken = emailVerificationTokenRepository.findByTokenHash(tokenHash)
+                .orElseThrow(() -> new BadRequestException("This verification link is invalid or has expired"));
+
+        if (verificationToken.isUsed() || verificationToken.getExpiresAt().isBefore(Instant.now())) {
+            throw new BadRequestException("This verification link is invalid or has expired");
+        }
+
+        User user = verificationToken.getUser();
+        user.setEmailVerified(true);
+        userRepository.save(user);
+
+        verificationToken.setUsed(true);
+        emailVerificationTokenRepository.save(verificationToken);
+
+        log.info("Email verified for user id={}", user.getId());
+    }
+
+    /** No-op (but still returns success) for unknown emails or already-verified accounts, for the same reason as forgotPassword. */
+    @Transactional
+    public void resendVerification(String email) {
+        userRepository.findByEmailIgnoreCase(email.trim().toLowerCase())
+                .filter(user -> !user.isEmailVerified())
+                .ifPresent(this::sendVerificationEmail);
+    }
+
+    private void sendVerificationEmail(User user) {
+        String rawToken = generateSecureToken();
+        EmailVerificationToken token = EmailVerificationToken.builder()
+                .user(user)
+                .tokenHash(jwtService.hashToken(rawToken))
+                .expiresAt(Instant.now().plusSeconds(VERIFY_TOKEN_TTL_HOURS * 3600))
+                .used(false)
+                .build();
+        emailVerificationTokenRepository.save(token);
+
+        String link = frontendVerifyUrl + "?token=" + rawToken;
+        mailService.sendVerificationEmail(user.getEmail(), link);
     }
 
     private String generateSecureToken() {

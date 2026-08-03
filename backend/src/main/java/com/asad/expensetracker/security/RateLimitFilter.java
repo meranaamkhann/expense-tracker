@@ -5,6 +5,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.lang.NonNull;
@@ -14,22 +15,17 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Simple in-memory fixed-window rate limiter for the unauthenticated auth endpoints
- * (login/register/refresh), keyed by client IP. This is enough to blunt naive brute-force
- * and credential-stuffing attempts on a single instance. For a multi-instance deployment,
- * swap this for a shared store (e.g. Redis) so the window is consistent across nodes.
+ * Guards the unauthenticated auth endpoints against brute force / credential stuffing.
+ * The actual counting is delegated to a RateLimiter bean — in-memory by default, or Redis-backed
+ * when app.security.rate-limit.backend=redis (see InMemoryRateLimiter / RedisRateLimiter).
  */
 @Component
+@RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final int MAX_REQUESTS_PER_WINDOW = 20;
-    private static final long WINDOW_MILLIS = 60_000; // 1 minute
-
-    private final Map<String, Window> windows = new ConcurrentHashMap<>();
+    private final RateLimiter rateLimiter;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -46,26 +42,18 @@ public class RateLimitFilter extends OncePerRequestFilter {
                                      @NonNull FilterChain filterChain) throws ServletException, IOException {
 
         String key = clientIp(request);
-        long now = System.currentTimeMillis();
 
-        Window window = windows.computeIfAbsent(key, k -> new Window(now));
-        synchronized (window) {
-            if (now - window.startedAt > WINDOW_MILLIS) {
-                window.startedAt = now;
-                window.count.set(0);
-            }
-            if (window.count.incrementAndGet() > MAX_REQUESTS_PER_WINDOW) {
-                response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
-                response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-                response.getWriter().write(objectMapper.writeValueAsString(Map.of(
-                        "timestamp", Instant.now().toString(),
-                        "status", HttpStatus.TOO_MANY_REQUESTS.value(),
-                        "error", "Too Many Requests",
-                        "message", "Too many attempts. Please wait a minute and try again.",
-                        "path", request.getRequestURI()
-                )));
-                return;
-            }
+        if (!rateLimiter.tryConsume(key)) {
+            response.setStatus(HttpStatus.TOO_MANY_REQUESTS.value());
+            response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+            response.getWriter().write(objectMapper.writeValueAsString(Map.of(
+                    "timestamp", Instant.now().toString(),
+                    "status", HttpStatus.TOO_MANY_REQUESTS.value(),
+                    "error", "Too Many Requests",
+                    "message", "Too many attempts. Please wait a minute and try again.",
+                    "path", request.getRequestURI()
+            )));
+            return;
         }
 
         filterChain.doFilter(request, response);
@@ -77,14 +65,5 @@ public class RateLimitFilter extends OncePerRequestFilter {
             return forwarded.split(",")[0].trim();
         }
         return request.getRemoteAddr();
-    }
-
-    private static class Window {
-        volatile long startedAt;
-        final AtomicInteger count = new AtomicInteger(0);
-
-        Window(long startedAt) {
-            this.startedAt = startedAt;
-        }
     }
 }

@@ -1,12 +1,23 @@
 "use client";
 import Link from "next/link";
-import { ArrowRight, Plus, TrendingDown, TrendingUp } from "lucide-react";
+import { useState } from "react";
+import { ArrowRight, MailWarning, Plus, TrendingDown, TrendingUp } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 import { useWallet } from "@/features/wallet/wallet-context";
 
 export default function DashboardPage() {
-  const { user } = useAuth();
+  const { user, resendVerification } = useAuth();
   const { categories, transactions, loading } = useWallet();
+  const [resent, setResent] = useState(false);
+
+  const handleResend = async () => {
+    try {
+      await resendVerification();
+      setResent(true);
+    } catch {
+      // toast already shown
+    }
+  };
 
   const income = transactions.filter((t) => t.kind === "income").reduce((n, t) => n + t.amount, 0);
   const expenses = transactions.filter((t) => t.kind === "expense").reduce((n, t) => n + t.amount, 0);
@@ -17,6 +28,17 @@ export default function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
+      {user && !user.emailVerified && (
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#f0cfc0] bg-[#fff0e9] px-5 py-4">
+          <div className="flex items-center gap-3">
+            <MailWarning className="size-5 shrink-0 text-[#9d482f]" />
+            <p className="text-sm text-[#763e2b]">Please confirm your email address to secure your account.</p>
+          </div>
+          <button onClick={handleResend} disabled={resent} className="rounded-full border border-[#c96c4b] px-4 py-1.5 text-sm font-bold text-[#9d482f] disabled:opacity-60">
+            {resent ? "Link sent — check your inbox" : "Resend verification email"}
+          </button>
+        </div>
+      )}
       <p className="eyebrow">A quiet check-in</p>
       <div className="mt-2 flex flex-wrap items-end justify-between gap-5">
         <div>

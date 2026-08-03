@@ -16,6 +16,8 @@ interface AuthContextType {
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<string>;
   resetPassword: (token: string, newPassword: string) => Promise<string>;
+  verifyEmail: (token: string) => Promise<string>;
+  resendVerification: () => Promise<string>;
   refreshUser: () => Promise<void>;
 }
 
@@ -154,6 +156,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const verifyEmail = async (token: string): Promise<string> => {
+    try {
+      const response = await api.post("/api/auth/verify-email", { token });
+      await refreshUser();
+      return response.data?.message || "Email verified.";
+    } catch (error: any) {
+      const msg = error.response?.data?.message || "That verification link is invalid or has expired.";
+      toast.error(msg);
+      throw error;
+    }
+  };
+
+  const resendVerification = async (): Promise<string> => {
+    try {
+      const response = await api.post("/api/auth/resend-verification", { email: user?.email });
+      return response.data?.message || "If that email needs verifying, a new link is on its way.";
+    } catch (error: any) {
+      const msg = error.response?.data?.message || "Could not resend the verification email.";
+      toast.error(msg);
+      throw error;
+    }
+  };
+
   const refreshUser = async () => {
     if (typeof window !== "undefined" && localStorage.getItem("accessToken")) {
       await fetchProfile();
@@ -162,7 +187,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, register, logout, updateProfile, changePassword, forgotPassword, resetPassword, refreshUser }}
+      value={{ user, loading, login, register, logout, updateProfile, changePassword, forgotPassword, resetPassword, verifyEmail, resendVerification, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

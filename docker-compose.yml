@@ -16,12 +16,25 @@ services:
       timeout: 5s
       retries: 5
 
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   backend:
     build:
       context: ./backend
     restart: unless-stopped
     depends_on:
       db:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -38,6 +51,11 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD:-}
       MAIL_FROM: ${MAIL_FROM:-no-reply@spendwise.app}
       FRONTEND_RESET_URL: ${FRONTEND_RESET_URL:-http://localhost:3000/reset-password}
+      FRONTEND_VERIFY_URL: ${FRONTEND_VERIFY_URL:-http://localhost:3000/verify-email}
+      ADMIN_EMAILS: ${ADMIN_EMAILS:-}
+      RATE_LIMIT_BACKEND: redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
     ports:
       - "8080:8080"
 

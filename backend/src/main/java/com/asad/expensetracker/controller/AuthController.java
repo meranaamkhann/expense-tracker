@@ -5,7 +5,9 @@ import com.asad.expensetracker.dto.auth.ForgotPasswordRequest;
 import com.asad.expensetracker.dto.auth.LoginRequest;
 import com.asad.expensetracker.dto.auth.RefreshRequest;
 import com.asad.expensetracker.dto.auth.RegisterRequest;
+import com.asad.expensetracker.dto.auth.ResendVerificationRequest;
 import com.asad.expensetracker.dto.auth.ResetPasswordRequest;
+import com.asad.expensetracker.dto.auth.VerifyEmailRequest;
 import com.asad.expensetracker.security.UserPrincipal;
 import com.asad.expensetracker.service.AuthService;
 import jakarta.validation.Valid;
@@ -57,5 +59,17 @@ public class AuthController {
     public ResponseEntity<Map<String, String>> resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request.token(), request.newPassword());
         return ResponseEntity.ok(Map.of("message", "Password reset successfully. You can now log in."));
+    }
+
+    @PostMapping("/verify-email")
+    public ResponseEntity<Map<String, String>> verifyEmail(@Valid @RequestBody VerifyEmailRequest request) {
+        authService.verifyEmail(request.token());
+        return ResponseEntity.ok(Map.of("message", "Email verified. Thanks for confirming!"));
+    }
+
+    @PostMapping("/resend-verification")
+    public ResponseEntity<Map<String, String>> resendVerification(@Valid @RequestBody ResendVerificationRequest request) {
+        authService.resendVerification(request.email());
+        return ResponseEntity.ok(Map.of("message", "If that email needs verifying, a new link is on its way."));
     }
 }

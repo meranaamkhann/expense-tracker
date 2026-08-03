@@ -41,4 +41,7 @@ public interface ExpenseRepository extends JpaRepository<Expense, Long> {
                                          @Param("to") LocalDate to);
 
     List<Expense> findByUserIdAndExpenseDateBetweenOrderByExpenseDateDesc(Long userId, LocalDate from, LocalDate to);
+
+    @Query("select coalesce(sum(e.amount), 0) from Expense e where e.kind = :kind")
+    BigDecimal sumAllAmountByKind(@Param("kind") Expense.TransactionKind kind);
 }

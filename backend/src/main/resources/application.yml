@@ -3,6 +3,15 @@ spring:
     name: ExpenseTracker
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  # Redis auto-config is intentionally excluded here: spring-boot-starter-data-redis otherwise
+  # eagerly opens a connection at startup even if nothing uses it, which would break every
+  # `mvn spring-boot:run` / test run / CI job that doesn't have Redis running. RedisConfig
+  # (see config package) creates the connection manually, ONLY when
+  # app.security.rate-limit.backend=redis is explicitly set.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
   jackson:
     default-property-inclusion: non_null
     time-zone: Asia/Kolkata
@@ -17,6 +26,15 @@ spring:
           auth: true
           starttls:
             enable: true
+  data:
+    redis:
+      # Only read when app.security.rate-limit.backend=redis (see RedisConfig). Redis's own
+      # Spring Boot auto-configuration is excluded above, so these values are simply unused —
+      # not just "lazy" — when the rate limiter stays on the default in-memory backend.
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 2000ms
 
 app:
   security:
@@ -26,20 +44,33 @@ app:
       refresh-token-ttl-days: ${JWT_REFRESH_TTL_DAYS:7}
     cors:
       allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:3000}
+    # Comma-separated emails to promote to ROLE_ADMIN on startup (only affects existing accounts;
+    # register normally first, then restart with the account's email listed here).
+    admin-emails: ${ADMIN_EMAILS:}
+    rate-limit:
+      # "memory" works out of the box for a single instance. Switch to "redis" (and set
+      # REDIS_HOST/REDIS_PORT below) once you run more than one backend instance, so the
+      # request-count window is shared instead of being per-process.
+      backend: ${RATE_LIMIT_BACKEND:memory}
+      max-per-minute: ${RATE_LIMIT_MAX_PER_MINUTE:20}
   mail:
     # If SMTP_HOST is blank (the default), the app logs the reset link instead of emailing it —
     # handy for local dev. Set real SMTP_* env vars in prod to actually send email.
     from: ${MAIL_FROM:no-reply@spendwise.app}
     frontend-reset-url: ${FRONTEND_RESET_URL:http://localhost:3000/reset-password}
+    frontend-verify-url: ${FRONTEND_VERIFY_URL:http://localhost:3000/verify-email}
 
 management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus
   endpoint:
     health:
       show-details: never
+  metrics:
+    tags:
+      application: ${spring.application.name}
 
 logging:
   level:

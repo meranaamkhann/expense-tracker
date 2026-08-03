@@ -14,7 +14,7 @@ public final class Mappers {
     }
 
     public static UserResponse toUserResponse(User user) {
-        return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getRole().name());
+        return new UserResponse(user.getId(), user.getName(), user.getEmail(), user.getRole().name(), user.isEmailVerified());
     }
 
     public static CategoryResponse toCategoryResponse(Category category) {

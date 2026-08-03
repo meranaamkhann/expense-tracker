@@ -52,6 +52,10 @@ public class User {
     @Builder.Default
     private boolean enabled = true;
 
+    @Column(name = "email_verified", nullable = false)
+    @Builder.Default
+    private boolean emailVerified = false;
+
     /**
      * Hash of the currently-valid refresh token (never store raw tokens).
      * Rotated on every refresh; nulled out on logout so the old token cannot be reused.
