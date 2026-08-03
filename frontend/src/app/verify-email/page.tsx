@@ -13,22 +13,28 @@ function VerifyEmailInner() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    if (!token) {
-      setStatus("error");
-      setMessage("This link is missing its token.");
-      return;
-    }
-    verifyEmail(token)
-      .then((msg) => {
+    const verify = async () => {
+      if (!token) {
+        setStatus("error");
+        setMessage("This link is missing its token.");
+        return;
+      }
+
+      try {
+        const msg = await verifyEmail(token);
         setStatus("success");
         setMessage(msg);
-      })
-      .catch((err: any) => {
+      } catch (err: any) {
         setStatus("error");
-        setMessage(err?.response?.data?.message || "That verification link is invalid or has expired.");
-      });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token]);
+        setMessage(
+          err?.response?.data?.message ??
+            "That verification link is invalid or has expired."
+        );
+      }
+    };
+
+    void verify();
+  }, [token, verifyEmail]);
 
   return (
     <section className="w-full max-w-md rounded-[2rem] border border-[#e8e3d9] bg-[#fffdf8] p-8 text-center shadow-xl shadow-[#203128]/5">

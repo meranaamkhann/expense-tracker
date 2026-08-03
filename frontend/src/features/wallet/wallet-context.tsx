@@ -62,7 +62,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   useEffect(() => {
-    refresh();
+   void refresh();
   }, [refresh]);
 
   const addTransaction: WalletContextType["addTransaction"] = async (input) => {

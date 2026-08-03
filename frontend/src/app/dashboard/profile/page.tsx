@@ -104,7 +104,7 @@ export default function ProfilePage() {
 
       <section className="mt-6 rounded-[22px] border border-[#f0cfc0] bg-[#fff0e9] p-6">
         <h2 className="text-xl font-semibold text-[#763e2b]">Delete your account</h2>
-        <p className="mt-2 text-sm leading-6 text-[#875746]">This permanently removes your account, categories, and every entry you've recorded. There's no undo.</p>
+        <p className="mt-2 text-sm leading-6 text-[#875746]">This permanently removes your account, categories, and every entry You&apos;ve recorded. There&apos;s no undo.</p>
         {!confirmingDelete ? (
           <button onClick={() => setConfirmingDelete(true)} className="mt-5 rounded-xl border border-[#c96c4b] px-5 py-2.5 font-bold text-[#9d482f]">Delete my account</button>
         ) : (
