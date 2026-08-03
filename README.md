@@ -109,9 +109,10 @@ where login friction has a real cost; flip it to a hard gate in `UserPrincipal.i
 
 There's no self-service "become admin" button — that would be a privilege-escalation hole. To make
 an account an admin: register normally, add its email to `ADMIN_EMAILS`, and restart the backend.
-`/api/admin/users` (list, paginated) and `/api/admin/users/{id}/status` (enable/disable) and
-`/api/admin/stats` (platform totals) are then available, gated by `hasRole("ADMIN")`. There's no
-frontend admin UI yet — these are API-only for now.
+`/api/admin/users` (list, paginated), `/api/admin/users/{id}/status` (enable/disable), and
+`/api/admin/stats` (platform totals) are gated by `hasRole("ADMIN")`. An admin who logs in sees an
+"Admin" link in the sidebar leading to a page with these — regular users never see the link and
+are redirected away from `/dashboard/admin` if they navigate there directly.
 
 ## Load testing
 
@@ -135,40 +136,61 @@ BASE_URL=https://your-api.example.com k6 run --vus 20 --duration 60s backend/loa
 ## What's implemented
 
 **Backend**
-- JPA persistence (User, Category, Expense, PasswordResetToken, EmailVerificationToken)
-- **Flyway migrations** — schema is version-controlled (`V1__init.sql`, `V2__email_verification.sql`)
-- JWT auth: register, login, refresh-token rotation (hashed, single-use), logout
-- **Email verification** (soft — doesn't block login) and **forgot/reset password**, both with
-  time-limited single-use tokens and a dev-safe "log instead of email" fallback
+- JPA persistence (User, Category, Expense, PasswordResetToken, EmailVerificationToken, RefreshToken, Budget)
+- **Flyway migrations** — schema is version-controlled (`V1` through `V4`)
+- JWT auth: register, login, refresh-token rotation, logout
+- **Multi-session support**: each device/browser gets its own refresh-token row. Logging in on
+  your phone no longer silently signs your laptop out — logout revokes just that session
+  (or every session, if no token is sent)
+- **Account lockout**: 5 failed login attempts locks the account for 15 minutes (on top of the
+  per-IP rate limiter, which only throttles, not tracks per-account)
+- **Scheduled cleanup** (`TokenCleanupService`, daily): expired/used reset, verification, and
+  refresh tokens no longer accumulate forever
+- **Delete-my-account**: password-confirmed, irreversible, cascades everywhere
+- Email verification (soft) and forgot/reset password, both with a dev-safe "log instead of email" fallback
 - Per-user data isolation on every query, verified by an integration test
 - Categories: CRUD, duplicate-name prevention, 6 defaults seeded on signup, delete guards
-- Expenses: CRUD, pagination, income/expense kind
+- Expenses: CRUD, pagination (service-level; not yet wired to a controller route or the UI — see below), **CSV export**
+- **Budgets**: monthly limit per category, spend/remaining/percent-used computed live against this month's expenses
 - Analytics: income/expense/balance totals, top categories, monthly trend
-- **Admin**: user list/enable/disable, platform stats, bootstrap-via-env-var promotion
+- Admin: user list/enable/disable, platform stats, bootstrap-via-env-var promotion
 - DTOs everywhere, centralized exception handling, consistent JSON error shape
-- **Rate limiting**, swappable between in-memory and Redis-backed
-- **Swagger/OpenAPI** at `/swagger-ui.html` with bearer-auth wired in
-- **Observability**: correlation IDs, structured JSON logs in prod, Prometheus metrics
-- **Tests**: unit (JWT, category rules, auth service, rate limiter) + integration (auth flow,
-  cross-user isolation, email verification lifecycle, admin access control) via MockMvc
+- Rate limiting, swappable between in-memory and Redis-backed
+- **Security headers**: CSP, HSTS, frame-deny, no-referrer, permissions-policy
+- Swagger/OpenAPI at `/swagger-ui.html` with bearer-auth wired in
+- Observability: correlation IDs, structured JSON logs in prod, Prometheus metrics
+- Tests: unit (JWT, category rules, auth service incl. lockout, budget calculations, rate limiter)
+  + integration (auth flow, cross-user isolation, email verification lifecycle, admin access control)
 - CORS via env var, stateless sessions, BCrypt (strength 12)
 - Docker for both services + Redis, docker-compose orchestration
-- **CI**: backend build+test, frontend lint+build, Docker image builds, on every push/PR
+- CI: backend build+test, frontend lint+build, Docker image builds, on every push/PR
 - Currency is INR end-to-end
-- **k6 load-test script** for manual/staging load testing
+- k6 load-test script for manual/staging load testing
 
 **Frontend**
 - Real backend integration, no localStorage fallback, automatic access-token refresh
 - Auth-guarded dashboard routes
 - Forgot-password / reset-password / verify-email pages, resend-verification banner
-- ₹ formatting throughout
+- **Budgets page**: set a monthly limit per category, live progress bars
+- **Admin page**: platform stats, user list with enable/disable (admin-only nav link)
+- **CSV export button** on the Entries page
+- **Delete-my-account** danger zone on the profile page, password-confirmed
+- ₹ formatting throughout — same visual design as before, no theme changes
 
 ## What's still not done
 
-- **Distributed tracing** beyond correlation-id log lines (no OpenTelemetry/Jaeger wiring)
-- **Frontend admin UI** — the admin API exists; there's no dashboard screen for it yet
-- **Automated load-test runs in CI** — the k6 script is there but intentionally manual
-- Multi-region/multi-tenant concerns, WebSocket/real-time updates, CSV/PDF export
+- **Recurring transactions** (rent, subscriptions) — not implemented
+- **PDF export** — CSV only for now
+- **Multi-currency selector** — the `currency` field exists per-expense (defaults INR), but there's
+  no UI to pick a different one; everything displays as ₹
+- **Frontend pagination in the UI** — the backend has a paginated expenses endpoint at the service
+  layer, but no controller route exposes it yet and the UI still fetches the full list. Fine at
+  personal-use scale; would need work before it scales to thousands of entries
+- **Frontend automated tests** (Playwright/Jest) — none yet
+- **Sentry / error tracking** — not wired up on either side
+- Distributed tracing beyond correlation-id log lines (no OpenTelemetry/Jaeger)
+- Automated load-test runs in CI (the k6 script is manual/staging-only, by design)
+- API versioning strategy
 
 ## Deploying
 

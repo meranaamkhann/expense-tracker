@@ -1,6 +1,7 @@
 package com.asad.expensetracker.controller;
 
 import com.asad.expensetracker.dto.user.ChangePasswordRequest;
+import com.asad.expensetracker.dto.user.DeleteAccountRequest;
 import com.asad.expensetracker.dto.user.UpdateProfileRequest;
 import com.asad.expensetracker.dto.user.UserResponse;
 import com.asad.expensetracker.security.UserPrincipal;
@@ -36,5 +37,12 @@ public class UserController {
                                                                 @Valid @RequestBody ChangePasswordRequest request) {
         userService.changePassword(principal.getId(), request);
         return ResponseEntity.ok(Map.of("message", "Password updated successfully"));
+    }
+
+    @DeleteMapping("/profile")
+    public ResponseEntity<Void> deleteAccount(@AuthenticationPrincipal UserPrincipal principal,
+                                               @Valid @RequestBody DeleteAccountRequest request) {
+        userService.deleteAccount(principal.getId(), request.password());
+        return ResponseEntity.noContent().build();
     }
 }

@@ -12,6 +12,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
   logout: () => void;
+  deleteAccount: (password: string) => Promise<void>;
   updateProfile: (name: string, email: string) => Promise<void>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
   forgotPassword: (email: string) => Promise<string>;
@@ -105,10 +106,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
-    api.post("/api/auth/logout").catch(() => {});
+    const refreshToken = typeof window !== "undefined" ? localStorage.getItem("refreshToken") : null;
+    // Revoke only this session/device — other logged-in devices keep working, matching how
+    // most apps behave (logging out your laptop shouldn't sign your phone out too).
+    api.post("/api/auth/logout", refreshToken ? { refreshToken } : {}).catch(() => {});
     clearSession();
     toast.info("Logged out successfully.");
     router.push("/login");
+  };
+
+  const deleteAccount = async (password: string): Promise<void> => {
+    try {
+      await api.delete("/api/users/profile", { data: { password } });
+      clearSession();
+      toast.info("Your account has been deleted.");
+      router.push("/");
+    } catch (error: any) {
+      const msg = error.response?.data?.message || "Could not delete your account.";
+      toast.error(msg);
+      throw error;
+    }
   };
 
   const updateProfile = async (name: string, email: string) => {
@@ -187,7 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, register, logout, updateProfile, changePassword, forgotPassword, resetPassword, verifyEmail, resendVerification, refreshUser }}
+      value={{ user, loading, login, register, logout, deleteAccount, updateProfile, changePassword, forgotPassword, resetPassword, verifyEmail, resendVerification, refreshUser }}
     >
       {children}
     </AuthContext.Provider>

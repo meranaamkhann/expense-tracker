@@ -3,16 +3,19 @@ package com.asad.expensetracker.service;
 import com.asad.expensetracker.dto.auth.AuthResponse;
 import com.asad.expensetracker.dto.auth.LoginRequest;
 import com.asad.expensetracker.dto.auth.RegisterRequest;
+import com.asad.expensetracker.exception.AccountLockedException;
 import com.asad.expensetracker.exception.BadRequestException;
 import com.asad.expensetracker.exception.DuplicateResourceException;
 import com.asad.expensetracker.exception.UnauthorizedException;
 import com.asad.expensetracker.mapper.Mappers;
 import com.asad.expensetracker.model.EmailVerificationToken;
 import com.asad.expensetracker.model.PasswordResetToken;
+import com.asad.expensetracker.model.RefreshToken;
 import com.asad.expensetracker.model.Role;
 import com.asad.expensetracker.model.User;
 import com.asad.expensetracker.repository.EmailVerificationTokenRepository;
 import com.asad.expensetracker.repository.PasswordResetTokenRepository;
+import com.asad.expensetracker.repository.RefreshTokenRepository;
 import com.asad.expensetracker.repository.UserRepository;
 import com.asad.expensetracker.security.JwtService;
 import lombok.RequiredArgsConstructor;
@@ -27,8 +30,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.security.SecureRandom;
+import java.time.Duration;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
+import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
@@ -38,6 +44,8 @@ public class AuthService {
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final long RESET_TOKEN_TTL_MINUTES = 30;
     private static final long VERIFY_TOKEN_TTL_HOURS = 24;
+    private static final int MAX_FAILED_ATTEMPTS = 5;
+    private static final long LOCKOUT_MINUTES = 15;
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
@@ -46,6 +54,7 @@ public class AuthService {
     private final CategoryService categoryService;
     private final PasswordResetTokenRepository passwordResetTokenRepository;
     private final EmailVerificationTokenRepository emailVerificationTokenRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
     private final MailService mailService;
 
     @Value("${app.mail.frontend-reset-url}")
@@ -54,12 +63,6 @@ public class AuthService {
     @Value("${app.mail.frontend-verify-url}")
     private String frontendVerifyUrl;
 
-    /**
-     * New accounts can log in and use the app right away (verification is not a login gate —
-     * that would just add friction for a personal finance tool). The `emailVerified` flag is
-     * surfaced to the frontend so it can nudge the user, and is available for anything in the
-     * future that should require a confirmed address.
-     */
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         String email = request.email().trim().toLowerCase();
@@ -87,58 +90,97 @@ public class AuthService {
     @Transactional
     public AuthResponse login(LoginRequest request) {
         String email = request.email().trim().toLowerCase();
+        Optional<User> maybeUser = userRepository.findByEmailIgnoreCase(email);
+
+        maybeUser.ifPresent(this::rejectIfLocked);
 
         try {
             authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(email, request.password()));
         } catch (Exception ex) {
+            maybeUser.ifPresent(this::recordFailedAttempt);
             throw new BadCredentialsException("Invalid email or password");
         }
 
-        User user = userRepository.findByEmailIgnoreCase(email)
-                .orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
+        User user = maybeUser.orElseThrow(() -> new BadCredentialsException("Invalid email or password"));
+
+        if (user.getFailedLoginAttempts() > 0 || user.getLockedUntil() != null) {
+            user.setFailedLoginAttempts(0);
+            user.setLockedUntil(null);
+            userRepository.save(user);
+        }
 
         return issueTokens(user);
     }
 
+    private void rejectIfLocked(User user) {
+        if (user.getLockedUntil() != null && user.getLockedUntil().isAfter(Instant.now())) {
+            long minutesLeft = Duration.between(Instant.now(), user.getLockedUntil()).toMinutes() + 1;
+            throw new AccountLockedException(
+                    "Too many failed login attempts. Try again in about " + minutesLeft + " minute(s).");
+        }
+    }
+
+    private void recordFailedAttempt(User user) {
+        int attempts = user.getFailedLoginAttempts() + 1;
+        user.setFailedLoginAttempts(attempts);
+        if (attempts >= MAX_FAILED_ATTEMPTS) {
+            user.setLockedUntil(Instant.now().plus(LOCKOUT_MINUTES, ChronoUnit.MINUTES));
+            log.warn("User id={} locked for {} minutes after {} failed login attempts", user.getId(), LOCKOUT_MINUTES, attempts);
+        }
+        userRepository.save(user);
+    }
+
+    /**
+     * Rotates the presented refresh token: the old one is revoked and a new access/refresh pair
+     * is issued, scoped to this same session. Other active sessions (other devices/browsers) are
+     * untouched — that's the whole point of storing one row per session instead of one per user.
+     */
     @Transactional
-    public AuthResponse refresh(String refreshToken) {
-        if (!jwtService.isTokenValid(refreshToken, "refresh")) {
+    public AuthResponse refresh(String rawRefreshToken) {
+        if (!jwtService.isTokenValid(rawRefreshToken, "refresh")) {
             throw new UnauthorizedException("Refresh token is invalid or expired");
         }
 
-        Long userId = jwtService.extractUserId(refreshToken);
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new UnauthorizedException("Refresh token is invalid or expired"));
+        String tokenHash = jwtService.hashToken(rawRefreshToken);
+        RefreshToken stored = refreshTokenRepository.findByTokenHash(tokenHash)
+                .orElseThrow(() -> new UnauthorizedException("Refresh token has already been used or revoked"));
 
-        String presentedHash = jwtService.hashToken(refreshToken);
-        if (user.getRefreshTokenHash() == null
-                || !user.getRefreshTokenHash().equals(presentedHash)
-                || user.getRefreshTokenExpiry() == null
-                || user.getRefreshTokenExpiry().isBefore(Instant.now())) {
+        if (stored.isRevoked() || stored.getExpiresAt().isBefore(Instant.now())) {
             throw new UnauthorizedException("Refresh token has already been used or revoked");
         }
 
-        // Rotate: the old refresh token becomes invalid the moment a new pair is issued.
-        return issueTokens(user);
+        stored.setRevoked(true);
+        refreshTokenRepository.save(stored);
+
+        return issueTokens(stored.getUser());
     }
 
+    /** Logs out one session if a refresh token is provided, otherwise every session for this user. */
     @Transactional
-    public void logout(Long userId) {
-        userRepository.findById(userId).ifPresent(user -> {
-            user.setRefreshTokenHash(null);
-            user.setRefreshTokenExpiry(null);
-            userRepository.save(user);
-        });
+    public void logout(Long userId, String rawRefreshToken) {
+        if (rawRefreshToken != null && !rawRefreshToken.isBlank()) {
+            String tokenHash = jwtService.hashToken(rawRefreshToken);
+            refreshTokenRepository.findByTokenHash(tokenHash).ifPresent(token -> {
+                token.setRevoked(true);
+                refreshTokenRepository.save(token);
+            });
+        } else {
+            refreshTokenRepository.revokeAllForUser(userId);
+        }
     }
 
     private AuthResponse issueTokens(User user) {
         String accessToken = jwtService.generateAccessToken(user.getId(), user.getEmail(), user.getRole().name());
         String refreshToken = jwtService.generateRefreshToken(user.getId(), user.getEmail());
 
-        user.setRefreshTokenHash(jwtService.hashToken(refreshToken));
-        user.setRefreshTokenExpiry(Instant.now().plusMillis(jwtService.getRefreshTokenTtlMs()));
-        userRepository.save(user);
+        RefreshToken tokenRow = RefreshToken.builder()
+                .user(user)
+                .tokenHash(jwtService.hashToken(refreshToken))
+                .expiresAt(Instant.now().plusMillis(jwtService.getRefreshTokenTtlMs()))
+                .revoked(false)
+                .build();
+        refreshTokenRepository.save(tokenRow);
 
         return new AuthResponse(accessToken, refreshToken, Mappers.toUserResponse(user));
     }
@@ -177,10 +219,12 @@ public class AuthService {
 
         User user = resetToken.getUser();
         user.setPassword(passwordEncoder.encode(newPassword));
-        // Revoke any existing session so old refresh tokens stop working once the password changes.
-        user.setRefreshTokenHash(null);
-        user.setRefreshTokenExpiry(null);
+        user.setFailedLoginAttempts(0);
+        user.setLockedUntil(null);
         userRepository.save(user);
+
+        // Revoke every active session so old refresh tokens stop working once the password changes.
+        refreshTokenRepository.revokeAllForUser(user.getId());
 
         resetToken.setUsed(true);
         passwordResetTokenRepository.save(resetToken);

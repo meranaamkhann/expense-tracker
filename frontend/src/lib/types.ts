@@ -19,6 +19,17 @@ export type Transaction = {
   notes?: string;
 };
 
+export type Budget = {
+  id: number;
+  categoryId: number;
+  category: string;
+  categoryColor?: string;
+  monthlyLimit: number;
+  spentThisMonth: number;
+  remaining: number;
+  percentUsed: number;
+};
+
 export type User = {
   id: number;
   name: string;

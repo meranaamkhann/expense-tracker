@@ -56,15 +56,18 @@ public class User {
     @Builder.Default
     private boolean emailVerified = false;
 
-    /**
-     * Hash of the currently-valid refresh token (never store raw tokens).
-     * Rotated on every refresh; nulled out on logout so the old token cannot be reused.
-     */
-    @Column(name = "refresh_token_hash", length = 255)
-    private String refreshTokenHash;
+    /** Failed login attempts since the last success. Reset to 0 on successful login. */
+    @Column(name = "failed_login_attempts", nullable = false)
+    @Builder.Default
+    private int failedLoginAttempts = 0;
 
-    @Column(name = "refresh_token_expiry")
-    private Instant refreshTokenExpiry;
+    /** Set when failedLoginAttempts crosses the threshold; login is rejected until this passes. */
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
+
+    /** Set when failedLoginAttempts crosses the threshold; login is rejected until this passes. */
+    @Column(name = "locked_until")
+    private Instant lockedUntil;
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)

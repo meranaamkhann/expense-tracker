@@ -42,9 +42,11 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserPrincipal principal) {
+    public ResponseEntity<Void> logout(@AuthenticationPrincipal UserPrincipal principal,
+                                        @RequestBody(required = false) RefreshRequest request) {
         if (principal != null) {
-            authService.logout(principal.getId());
+            String refreshToken = request != null ? request.refreshToken() : null;
+            authService.logout(principal.getId(), refreshToken);
         }
         return ResponseEntity.noContent().build();
     }

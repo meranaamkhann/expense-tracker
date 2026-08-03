@@ -8,6 +8,7 @@ import com.asad.expensetracker.exception.DuplicateResourceException;
 import com.asad.expensetracker.exception.ResourceNotFoundException;
 import com.asad.expensetracker.mapper.Mappers;
 import com.asad.expensetracker.model.User;
+import com.asad.expensetracker.repository.RefreshTokenRepository;
 import com.asad.expensetracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -20,6 +21,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional(readOnly = true)
     public UserResponse getProfile(Long userId) {
@@ -52,14 +54,28 @@ public class UserService {
         }
 
         user.setPassword(passwordEncoder.encode(request.newPassword()));
-        // Force re-login on other devices once the password changes.
-        user.setRefreshTokenHash(null);
-        user.setRefreshTokenExpiry(null);
         userRepository.save(user);
+        // Force re-login on every device once the password changes.
+        refreshTokenRepository.revokeAllForUser(userId);
     }
 
     private User findUser(Long userId) {
         return userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+    /**
+     * Password-confirmed, irreversible. Categories and expenses cascade via the JPA relationship;
+     * refresh tokens, budgets, and password-reset/verification tokens cascade at the DB level
+     * (ON DELETE CASCADE in the Flyway migrations) since User doesn't hold Java-side references
+     * to them.
+     */
+    @Transactional
+    public void deleteAccount(Long userId, String password) {
+        User user = findUser(userId);
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new BadRequestException("Password is incorrect");
+        }
+        userRepository.delete(user);
     }
 }

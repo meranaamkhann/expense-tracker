@@ -1,12 +1,26 @@
 "use client";
 import { FormEvent, useState } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Download, Loader2, Plus, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+import { downloadExpensesCsv } from "@/lib/api";
 import { useWallet } from "@/features/wallet/wallet-context";
 
 export default function ExpensesPage() {
   const { categories, transactions, addTransaction, removeTransaction, loading } = useWallet();
   const [kind, setKind] = useState<"expense" | "income">("expense");
   const [busy, setBusy] = useState(false);
+  const [exporting, setExporting] = useState(false);
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      await downloadExpensesCsv();
+    } catch {
+      toast.error("Couldn't export your entries. Try again.");
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -32,8 +46,15 @@ export default function ExpensesPage() {
 
   return (
     <div className="mx-auto max-w-5xl">
-      <p className="eyebrow">Your entries</p>
-      <h1 className="mt-2 text-4xl font-semibold tracking-tight">Make room for the real numbers.</h1>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <p className="eyebrow">Your entries</p>
+          <h1 className="mt-2 text-4xl font-semibold tracking-tight">Make room for the real numbers.</h1>
+        </div>
+        <button onClick={handleExport} disabled={exporting} className="inline-flex items-center gap-2 rounded-full border border-[#d8d2c6] bg-white px-5 py-2.5 text-sm font-bold text-[#3e6b50] disabled:opacity-60">
+          {exporting ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />} Export CSV
+        </button>
+      </div>
       <div className="mt-8 grid gap-7 lg:grid-cols-[.8fr_1.2fr]">
         <form onSubmit={submit} className="card h-fit p-6">
           <h2 className="text-xl font-semibold">Add a moment</h2>

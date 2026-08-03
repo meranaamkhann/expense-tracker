@@ -7,6 +7,7 @@ import com.asad.expensetracker.exception.ResourceNotFoundException;
 import com.asad.expensetracker.model.Expense;
 import com.asad.expensetracker.model.User;
 import com.asad.expensetracker.repository.ExpenseRepository;
+import com.asad.expensetracker.repository.RefreshTokenRepository;
 import com.asad.expensetracker.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -20,6 +21,7 @@ public class AdminService {
 
     private final UserRepository userRepository;
     private final ExpenseRepository expenseRepository;
+    private final RefreshTokenRepository refreshTokenRepository;
 
     @Transactional(readOnly = true)
     public Page<AdminUserResponse> listUsers(Pageable pageable) {
@@ -37,9 +39,8 @@ public class AdminService {
 
         user.setEnabled(enabled);
         if (!enabled) {
-            // Kick any active session immediately.
-            user.setRefreshTokenHash(null);
-            user.setRefreshTokenExpiry(null);
+            // Kick every active session immediately across all of this user's devices.
+            refreshTokenRepository.revokeAllForUser(user.getId());
         }
         return toAdminUserResponse(userRepository.save(user));
     }

@@ -2,13 +2,14 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { BarChart3, FolderHeart, Leaf, LogOut, ReceiptText, Settings2 } from "lucide-react";
+import { BarChart3, FolderHeart, Leaf, LogOut, PiggyBank, ReceiptText, Settings2, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 
 const links = [
   ["/dashboard", "Overview", Leaf],
   ["/dashboard/expenses", "Entries", ReceiptText],
   ["/dashboard/categories", "Categories", FolderHeart],
+  ["/dashboard/budgets", "Budgets", PiggyBank],
   ["/dashboard/analytics", "Reflections", BarChart3],
   ["/dashboard/profile", "Settings", Settings2],
 ] as const;
@@ -51,6 +52,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <Icon className="size-4" />{label}
               </Link>
             ))}
+            {user.role === "ADMIN" && (
+              <Link href="/dashboard/admin" className={`flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold transition ${path === "/dashboard/admin" ? "bg-[#dce9dd] text-[#28533a]" : "text-[#68756d] hover:bg-[#f2efe7]"}`}>
+                <ShieldCheck className="size-4" />Admin
+              </Link>
+            )}
           </nav>
           <div className="mt-auto rounded-2xl bg-[#dce9dd] p-4">
             <p className="text-xs text-[#526056]">A gentle reminder</p>
