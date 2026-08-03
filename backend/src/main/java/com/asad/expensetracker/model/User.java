@@ -65,10 +65,6 @@ public class User {
     @Column(name = "locked_until")
     private Instant lockedUntil;
 
-    /** Set when failedLoginAttempts crosses the threshold; login is rejected until this passes. */
-    @Column(name = "locked_until")
-    private Instant lockedUntil;
-
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;
