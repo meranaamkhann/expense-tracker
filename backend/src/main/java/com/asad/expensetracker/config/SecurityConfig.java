@@ -3,6 +3,8 @@ package com.asad.expensetracker.config;
 import com.asad.expensetracker.security.CustomUserDetailsService;
 import com.asad.expensetracker.security.JwtAuthFilter;
 import com.asad.expensetracker.security.RateLimitFilter;
+
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -82,6 +84,14 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
+                )
+                .exceptionHandling(exception -> exception
+                    .authenticationEntryPoint((request, response, authException) -> {
+                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
+                    })
+                    .accessDeniedHandler((request, response, accessDeniedException) -> {
+                        response.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden");
+                    })
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
