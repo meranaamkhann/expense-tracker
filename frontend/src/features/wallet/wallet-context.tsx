@@ -61,9 +61,53 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     }
   }, [user]);
 
-  useEffect(() => {
-   void refresh();
-  }, [refresh]);
+ useEffect(() => {
+  let cancelled = false;
+
+  (async () => {
+    if (!user) {
+      if (!cancelled) {
+        setCategories([]);
+        setTransactions([]);
+        setLoading(false);
+      }
+      return;
+    }
+
+    if (!cancelled) {
+      setLoading(true);
+    }
+
+    try {
+      const [cats, txns] = await Promise.all([
+        fetchCategories(),
+        fetchTransactions(),
+      ]);
+
+      if (!cancelled) {
+        setCategories(cats);
+        setTransactions(
+          txns.sort((a, b) => b.date.localeCompare(a.date))
+        );
+      }
+    } catch (error) {
+      if (!cancelled) {
+        console.error("Failed to load wallet data", error);
+        toast.error(
+          "Couldn't load your data. Check your connection and try again."
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setLoading(false);
+      }
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, [user]);
 
   const addTransaction: WalletContextType["addTransaction"] = async (input) => {
     try {

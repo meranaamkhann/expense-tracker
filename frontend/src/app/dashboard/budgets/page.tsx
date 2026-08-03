@@ -12,20 +12,31 @@ export default function BudgetsPage() {
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
-  const load = async () => {
-    setLoading(true);
-    try {
-      setBudgets(await fetchBudgets());
-    } catch {
-      toast.error("Couldn't load your budgets.");
-    } finally {
-      setLoading(false);
-    }
-  };
+ useEffect(() => {
+  let cancelled = false;
 
-  useEffect(() => {
-   void load();
-  }, []);
+  (async () => {
+    try {
+      const data = await fetchBudgets();
+
+      if (!cancelled) {
+        setBudgets(data);
+      }
+    } catch {
+      if (!cancelled) {
+        toast.error("Couldn't load your budgets.");
+      }
+    } finally {
+      if (!cancelled) {
+        setLoading(false);
+      }
+    }
+  })();
+
+  return () => {
+    cancelled = true;
+  };
+}, []);
 
   const budgetedCategoryIds = new Set(budgets.map((b) => b.categoryId));
   const availableCategories = categories.filter((c) => !budgetedCategoryIds.has(c.id));
