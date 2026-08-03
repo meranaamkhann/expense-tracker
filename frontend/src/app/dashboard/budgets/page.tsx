@@ -24,7 +24,7 @@ export default function BudgetsPage() {
   };
 
   useEffect(() => {
-    load();
+   void load();
   }, []);
 
   const budgetedCategoryIds = new Set(budgets.map((b) => b.categoryId));
