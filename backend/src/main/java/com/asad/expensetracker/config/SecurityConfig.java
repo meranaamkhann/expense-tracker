@@ -3,12 +3,11 @@ package com.asad.expensetracker.config;
 import com.asad.expensetracker.security.CustomUserDetailsService;
 import com.asad.expensetracker.security.JwtAuthFilter;
 import com.asad.expensetracker.security.RateLimitFilter;
-
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
@@ -23,7 +22,6 @@ import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWrite
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.http.HttpMethod;
 
 import java.util.List;
 
@@ -79,6 +77,9 @@ public class SecurityConfig {
                                 "geolocation=(), microphone=(), camera=(), payment=()"))
                 )
                 .authorizeHttpRequests(auth -> auth
+                        // Preflight requests never carry credentials, so they must never be
+                        // subject to auth rules — CORS (below) is what actually decides whether
+                        // the browser lets the real request through.
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/health", "/actuator/health", "/actuator/health/**").permitAll()
@@ -86,14 +87,6 @@ public class SecurityConfig {
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
-                )
-                .exceptionHandling(exception -> exception
-                    .authenticationEntryPoint((request, response, authException) -> {
-                        response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
-                    })
-                    .accessDeniedHandler((request, response, accessDeniedException) -> {
-                        response.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden");
-                    })
                 )
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
@@ -104,8 +97,13 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
+        // Defensive trim: a stray space after a comma in CORS_ALLOWED_ORIGINS (e.g.
+        // "https://a.com, https://b.com") would otherwise silently fail to match, since CORS
+        // origin comparison is exact-string, not fuzzy.
+        List<String> trimmedOrigins = allowedOrigins.stream().map(String::strip).toList();
+
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(allowedOrigins);
+        configuration.setAllowedOrigins(trimmedOrigins);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
         configuration.setExposedHeaders(List.of("Authorization"));
