@@ -3,6 +3,7 @@ package com.asad.expensetracker.config;
 import com.asad.expensetracker.security.CustomUserDetailsService;
 import com.asad.expensetracker.security.JwtAuthFilter;
 import com.asad.expensetracker.security.RateLimitFilter;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -57,29 +58,27 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                // Mostly a JSON API behind a separate frontend origin, but Swagger UI (same
-                // origin, under /swagger-ui/) needs to load its own JS/CSS — hence 'self' rather
-                // than 'none'. Everything else (framing, objects, cross-origin resources) is locked down.
+
                 .headers(headers -> headers
                         .contentSecurityPolicy(csp -> csp.policyDirectives(
                                 "default-src 'self'; frame-ancestors 'none'; base-uri 'none'; object-src 'none'"))
                         .frameOptions(frame -> frame.deny())
                         .contentTypeOptions(contentTypeOptions -> {})
-                        .referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                        .referrerPolicy(referrer ->
+                                referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
                         .httpStrictTransportSecurity(hsts -> hsts
                                 .includeSubDomains(true)
                                 .maxAgeInSeconds(31536000))
-                        .permissionsPolicy(permissions -> permissions.policy(
-                                "geolocation=(), microphone=(), camera=(), payment=()"))
+                        .permissionsPolicy(permissions ->
+                                permissions.policy("geolocation=(), microphone=(), camera=(), payment=()"))
                 )
+
                 .authorizeHttpRequests(auth -> auth
-                        // Preflight requests never carry credentials, so they must never be
-                        // subject to auth rules — CORS (below) is what actually decides whether
-                        // the browser lets the real request through.
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/health", "/actuator/health", "/actuator/health/**").permitAll()
@@ -88,6 +87,14 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
+
+                .exceptionHandling(exception -> exception
+                        .authenticationEntryPoint((request, response, authException) ->
+                                response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized"))
+                        .accessDeniedHandler((request, response, accessDeniedException) ->
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN, "Forbidden"))
+                )
+
                 .authenticationProvider(authenticationProvider())
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
@@ -97,10 +104,10 @@ public class SecurityConfig {
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
-        // Defensive trim: a stray space after a comma in CORS_ALLOWED_ORIGINS (e.g.
-        // "https://a.com, https://b.com") would otherwise silently fail to match, since CORS
-        // origin comparison is exact-string, not fuzzy.
-        List<String> trimmedOrigins = allowedOrigins.stream().map(String::strip).toList();
+
+        List<String> trimmedOrigins = allowedOrigins.stream()
+                .map(String::strip)
+                .toList();
 
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOrigins(trimmedOrigins);
@@ -112,6 +119,7 @@ public class SecurityConfig {
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
+
         return source;
     }
 }
