@@ -17,6 +17,10 @@ A full-stack expense tracker: Next.js/React frontend + Spring Boot backend with 
 - **Backend:** Spring Boot 3.3, Spring Data JPA (Hibernate), Flyway, Spring Security (stateless JWT), PostgreSQL (prod) / H2 (dev), springdoc-openapi
 - **Frontend:** Next.js 15, React, Tailwind CSS, axios
 
+## Screenshots
+Dashboard
+![Dashboard](assets/dashboard.png)
+
 ## Project layout
 
 ```
