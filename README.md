@@ -18,8 +18,34 @@ A full-stack expense tracker: Next.js/React frontend + Spring Boot backend with 
 - **Frontend:** Next.js 15, React, Tailwind CSS, axios
 
 ## Screenshots
-Dashboard
+
+### Landing Page
+
+![Landing Page](assets/landing-page.png)
+
+### Dashboard
+
 ![Dashboard](assets/dashboard.png)
+
+### Entries
+
+![Entries](assets/entries.png)
+
+### Categories
+
+![Categories](assets/categories.png)
+
+### Budgets
+
+![Budgets](assets/budgets.png)
+
+### Reflections
+
+![Reflections](assets/reflections.png)
+
+### Settings
+
+![Settings](assets/settings.png)
 
 ## Project layout
 
