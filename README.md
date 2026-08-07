@@ -1,4 +1,13 @@
 # SpendWise — Expense Tracker
+![Java](https://img.shields.io/badge/Java-17-orange)
+![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.3-green)
+![Next.js](https://img.shields.io/badge/Next.js-15-black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
+ 
+ 🌐 **Live Demo:** https://spendwise-sibbus.vercel.app/
+
+📖 **API Documentation:** https://YOUR_BACKEND_URL/swagger-ui.html
 
 A full-stack expense tracker: Next.js/React frontend + Spring Boot backend with real persistence
 (PostgreSQL/H2), JWT authentication, and per-user data isolation. All amounts are in **INR (₹)**.
