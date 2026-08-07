@@ -1,23 +1,25 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowRight, MailWarning, Plus, TrendingDown, TrendingUp, X } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
 import { useWallet } from "@/features/wallet/wallet-context";
 
 const DISMISS_KEY = "spendwise-verify-banner-dismissed";
 
+function readDismissed(): boolean {
+  if (typeof window === "undefined") return false;
+  return sessionStorage.getItem(DISMISS_KEY) === "true";
+}
+
 export default function DashboardPage() {
   const { user, resendVerification } = useAuth();
   const { categories, transactions, loading } = useWallet();
   const [resent, setResent] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-
-  // Read the dismissal after mount (not during render) since sessionStorage isn't
-  // available during server-side rendering.
-  useEffect(() => {
-    setDismissed(sessionStorage.getItem(DISMISS_KEY) === "true");
-  }, []);
+  // Lazy initializer (runs once, during render) instead of an effect + setState after mount —
+  // reading sessionStorage is a synchronous browser API, so there's no need to defer it to an
+  // effect at all.
+  const [dismissed, setDismissed] = useState(readDismissed);
 
   const dismissBanner = () => {
     sessionStorage.setItem(DISMISS_KEY, "true");
