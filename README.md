@@ -37,7 +37,7 @@ A full-stack expense tracker: Next.js/React frontend + Spring Boot backend with 
 
 ### Budgets
 
-![Budgets](assets/budgets.png)
+![Budgets](assets/budget.png)
 
 ### Reflections
 
