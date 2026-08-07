@@ -3,6 +3,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { ArrowRight, Leaf, Loader2 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
+import { PasswordInput } from "@/components/password-input";
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -37,7 +38,7 @@ export default function LoginPage() {
             <input name="email" type="email" required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 outline-none focus:border-[#3e6b50]" />
           </label>
           <label className="block text-sm font-semibold">Password
-            <input name="password" type="password" required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 outline-none focus:border-[#3e6b50]" />
+            <PasswordInput name="password" required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 pr-11 outline-none focus:border-[#3e6b50]" />
           </label>
           <div className="text-right">
             <Link href="/forgot-password" className="text-sm font-semibold text-[#3e6b50]">Forgot password?</Link>

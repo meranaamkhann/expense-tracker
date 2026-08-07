@@ -3,6 +3,7 @@ import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { ArrowRight, Leaf, Loader2 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
+import { PasswordInput } from "@/components/password-input";
 
 export default function RegisterPage() {
   const { register } = useAuth();
@@ -39,7 +40,7 @@ export default function RegisterPage() {
             <input name="email" type="email" required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 outline-none focus:border-[#3e6b50]" />
           </label>
           <label className="block text-sm font-semibold">Password
-            <input name="password" type="password" minLength={8} required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 outline-none focus:border-[#3e6b50]" />
+            <PasswordInput name="password" minLength={8} required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 pr-11 outline-none focus:border-[#3e6b50]" />
           </label>
           {error && <p className="text-sm font-medium text-[#b74c3d]">{error}</p>}
           <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#c96c4b] py-3.5 font-bold text-white transition hover:bg-[#b95e40] disabled:opacity-60">

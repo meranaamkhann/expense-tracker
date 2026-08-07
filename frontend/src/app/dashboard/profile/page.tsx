@@ -2,6 +2,7 @@
 import { FormEvent, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
+import { PasswordInput } from "@/components/password-input";
 
 export default function ProfilePage() {
   const { user, updateProfile, changePassword, logout, deleteAccount } = useAuth();
@@ -84,10 +85,10 @@ export default function ProfilePage() {
         <h2 className="text-xl font-semibold">Change password</h2>
         <form onSubmit={savePassword} className="mt-6 grid gap-4 sm:grid-cols-2">
           <label className="text-sm font-semibold">Current password
-            <input name="currentPassword" type="password" required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-3 py-2.5" />
+            <PasswordInput name="currentPassword" required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-3 py-2.5 pr-11" />
           </label>
           <label className="text-sm font-semibold">New password
-            <input name="newPassword" type="password" minLength={8} required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-3 py-2.5" />
+            <PasswordInput name="newPassword" minLength={8} required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-3 py-2.5 pr-11" />
           </label>
           <button disabled={pwBusy} className="flex items-center justify-center gap-2 rounded-xl bg-[#203128] px-5 py-3 font-bold text-white sm:col-span-2 disabled:opacity-60">
             {pwBusy ? <Loader2 className="size-4 animate-spin" /> : "Update password"}
@@ -104,13 +105,13 @@ export default function ProfilePage() {
 
       <section className="mt-6 rounded-[22px] border border-[#f0cfc0] bg-[#fff0e9] p-6">
         <h2 className="text-xl font-semibold text-[#763e2b]">Delete your account</h2>
-        <p className="mt-2 text-sm leading-6 text-[#875746]">This permanently removes your account, categories, and every entry You&apos;ve recorded. There&apos;s no undo.</p>
+        <p className="mt-2 text-sm leading-6 text-[#875746]">This permanently removes your account, categories, and every entry you've recorded. There's no undo.</p>
         {!confirmingDelete ? (
           <button onClick={() => setConfirmingDelete(true)} className="mt-5 rounded-xl border border-[#c96c4b] px-5 py-2.5 font-bold text-[#9d482f]">Delete my account</button>
         ) : (
           <form onSubmit={submitDelete} className="mt-5 space-y-3">
             <label className="block text-sm font-semibold text-[#763e2b]">Confirm your password to continue
-              <input name="password" type="password" required className="mt-2 w-full max-w-sm rounded-xl border border-[#f0cfc0] bg-white px-3 py-2.5" />
+              <PasswordInput name="password" required wrapperClassName="max-w-sm" className="mt-2 w-full rounded-xl border border-[#f0cfc0] bg-white px-3 py-2.5 pr-11" />
             </label>
             {deleteError && <p className="text-sm font-medium text-[#9d482f]">{deleteError}</p>}
             <div className="flex gap-3">

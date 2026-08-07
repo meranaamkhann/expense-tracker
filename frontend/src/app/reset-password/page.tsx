@@ -4,6 +4,7 @@ import { FormEvent, Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, Leaf, Loader2 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
+import { PasswordInput } from "@/components/password-input";
 
 function ResetPasswordForm() {
   const { resetPassword } = useAuth();
@@ -47,7 +48,7 @@ function ResetPasswordForm() {
       ) : (
         <form onSubmit={submit} className="mt-7 space-y-4">
           <label className="block text-sm font-semibold">New password
-            <input name="newPassword" type="password" minLength={8} required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 outline-none focus:border-[#3e6b50]" />
+            <PasswordInput name="newPassword" minLength={8} required className="mt-2 w-full rounded-xl border border-[#d8d2c6] bg-white px-4 py-3 pr-11 outline-none focus:border-[#3e6b50]" />
           </label>
           {error && <p className="text-sm font-medium text-[#b74c3d]">{error}</p>}
           <button disabled={busy} className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#203128] py-3.5 font-bold text-white transition hover:bg-[#3e6b50] disabled:opacity-60">
