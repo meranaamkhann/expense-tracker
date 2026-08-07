@@ -26,6 +26,9 @@ spring:
           auth: true
           starttls:
             enable: true
+            connectiontimeout: 10000
+          timeout: 10000
+          writetimeout: 10000
   data:
     redis:
       # Only read when app.security.rate-limit.backend=redis (see RedisConfig). Redis's own

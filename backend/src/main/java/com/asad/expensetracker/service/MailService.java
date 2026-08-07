@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -25,7 +26,11 @@ public class MailService {
     /**
      * Sends the password-reset link. If no SMTP host is configured (the local-dev default),
      * this logs the link instead of failing, so the flow is still testable with zero setup.
+     * Runs on a background thread (see AsyncConfig) so a slow or unreachable SMTP provider
+     * never delays the HTTP response — the caller gets an immediate "sent" regardless of how
+     * long the actual send takes or whether it ultimately succeeds.
      */
+    @Async("mailTaskExecutor")
     public void sendPasswordResetEmail(String toEmail, String resetLink) {
         if (smtpHost == null || smtpHost.isBlank()) {
             log.info("SMTP is not configured — password reset link for {}: {}", toEmail, resetLink);
@@ -53,8 +58,10 @@ public class MailService {
 
     /**
      * Sends the "confirm your email" link. Same dev-safe fallback as the password reset email:
-     * if SMTP isn't configured, the link is logged instead of sent.
+     * if SMTP isn't configured, the link is logged instead of sent. Also runs on the background
+     * mail executor for the same reason.
      */
+    @Async("mailTaskExecutor")
     public void sendVerificationEmail(String toEmail, String verifyLink) {
         if (smtpHost == null || smtpHost.isBlank()) {
             log.info("SMTP is not configured — email verification link for {}: {}", toEmail, verifyLink);
