@@ -17,6 +17,18 @@ A full-stack expense tracker: Next.js/React frontend + Spring Boot backend with 
 - **Backend:** Spring Boot 3.3, Spring Data JPA (Hibernate), Flyway, Spring Security (stateless JWT), PostgreSQL (prod) / H2 (dev), springdoc-openapi
 - **Frontend:** Next.js 15, React, Tailwind CSS, axios
 
+## Features
+
+- Secure JWT authentication
+- Income and expense management
+- Custom categories
+- Monthly budgets with progress tracking
+- Spending insights and reflections
+- CSV export
+- Profile and password management
+- REST API with OpenAPI documentation
+
+
 ## Screenshots
 
 ### Landing Page
