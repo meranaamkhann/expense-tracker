@@ -7,7 +7,7 @@
  
  🌐 **Live Demo:** https://spendwise-sibbus.vercel.app/
 
-📖 **API Documentation:** https://YOUR_BACKEND_URL/swagger-ui.html
+📖 **API Documentation:** https://spendwise-backend-2y44.onrender.com/swagger-ui.html
 
 A full-stack expense tracker: Next.js/React frontend + Spring Boot backend with real persistence
 (PostgreSQL/H2), JWT authentication, and per-user data isolation. All amounts are in **INR (₹)**.
