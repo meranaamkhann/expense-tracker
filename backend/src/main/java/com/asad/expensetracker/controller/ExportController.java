@@ -10,6 +10,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -27,6 +28,10 @@ public class ExportController {
 
     private final ExpenseRepository expenseRepository;
 
+    // Category is a lazy @ManyToOne on Expense — without @Transactional here, e.getCategory()
+    // below throws LazyInitializationException the moment the DB session has already closed
+    // (which is exactly what happens in prod, since open-in-view is deliberately off there).
+    @Transactional(readOnly = true)
     @GetMapping(value = "/export", produces = "text/csv")
     public ResponseEntity<ByteArrayResource> exportCsv(@AuthenticationPrincipal UserPrincipal principal) {
         List<Expense> expenses = expenseRepository.findByUserIdOrderByExpenseDateDesc(principal.getId());
